@@ -1,0 +1,142 @@
+{
+ "properties": {
+  "displayName": "V5 - Azure resources should be locked - Audit and deploy lock",
+  "policyType": "Custom",
+  "mode": "All",
+  "description": "This policy audits any azure resources and audit, if the Resource is locked. If not, a lock will be deployed automatically. You can include Resources to the audit based on a tag you define",
+  "metadata": {
+   "category": "Governance",
+   "createdBy": "801698a8-6aa3-4a80-a2a3-ae6d7ef86209",
+   "createdOn": "2023-01-17T15:53:48.3868504Z",
+   "updatedBy": null,
+   "updatedOn": null
+  },
+  "parameters": {
+   "TagOfInclusion": {
+    "type": "String",
+    "metadata": {
+     "displayName": "Tag to check for Inclusion",
+     "description": "If there is a need to include certain resources, this field is used to specify the tag name for the inclusion scope of the policy."
+    },
+    "defaultValue": "AutoLockInclusion"
+   },
+   "TagValueOfInclusion": {
+    "type": "String",
+    "metadata": {
+     "displayName": "Value of the tag for Inclusion",
+     "description": "If you decide to configure an inclusion, this field is used to specify the tag value for the inclusion scope of the policy."
+    },
+    "defaultValue": "true"
+   },
+   "TagOfExclusion": {
+    "type": "String",
+    "metadata": {
+     "displayName": "Tag to check for exclusion",
+     "description": "If there is a need to exclude resources from the audit based on a tag, you can do so. In this field, define which tag you want to check for it's value."
+    },
+    "defaultValue": "AutoLockExclusion"
+   },
+   "TagValueOfExclusion": {
+    "type": "String",
+    "metadata": {
+     "displayName": "Value of the tag for exclusion",
+     "description": "If you decided to configure an exclusion, you need to configure a specific value of the tag you defined. Put the tag value for exclusion in this field"
+    },
+    "defaultValue": "true"
+   },
+   "allowedResourceTypes": {
+    "type": "Array",
+    "metadata": {
+     "displayName": "Targeted Resource Types",
+     "description": "The list of types of resources to be targeted by the policy.",
+     "strongType": "resourceTypes"
+    },
+    "allowedValues": [
+     "microsoft.compute/virtualmachines",
+     "microsoft.compute/disks",
+     "microsoft.network/networksecuritygroups",
+     "Microsoft.Network/networkInterfaces",
+     "microsoft.storage/storageaccounts"
+    ],
+    "defaultValue": [
+     "microsoft.compute/virtualmachines",
+     "microsoft.compute/disks",
+     "Microsoft.Network/networkInterfaces"
+    ]
+   }
+  },
+  "policyRule": {
+   "if": {
+    "allOf": [
+     {
+      "field": "[concat('tags[', parameters('TagOfInclusion'), ']')]",
+      "equals": "[parameters('TagValueOfInclusion')]"
+     },
+     {
+      "not": {
+       "field": "[concat('tags[', parameters('TagOfExclusion'), ']')]",
+       "equals": "[parameters('TagValueOfExclusion')]"
+      }
+     },
+     {
+      "field": "type",
+      "in": "[parameters('allowedResourceTypes')]"
+     }
+    ]
+   },
+   "then": {
+    "effect": "deployIfNotExists",
+    "details": {
+     "type": "Microsoft.Authorization/locks",
+     "roleDefinitionIds": [
+      "/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635"
+     ],
+     "existenceCondition": {
+      "field": "Microsoft.Authorization/locks/level",
+      "equals": "CanNotDelete"
+     },
+     "deployment": {
+      "properties": {
+       "mode": "incremental",
+       "template": {
+        "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+        "contentVersion": "1.0.0.0",
+        "parameters": {
+         "lockScope": {
+          "type": "string"
+         },
+         "assignmentId": {
+          "type": "string"
+         }
+        },
+        "resources": [
+         {
+          "name": "AutoLock",
+          "type": "Microsoft.Authorization/locks",
+          "apiVersion": "2017-04-01",
+          "scope": "[parameters('lockScope')]",
+          "properties": {
+           "level": "CanNotDelete",
+           "notes": "[concat('This lock was deployed automatically by Azure Policy to prevent the resource from accidental deletion. AssignmentId: ', parameters('assignmentId'))]"
+          }
+         }
+        ]
+       },
+       "parameters": {
+        "lockScope": {
+         "value": "[concat(field('type'),'/', field('name'))]"
+        },
+        "assignmentId": {
+         "value": "[policy().assignmentId]"
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "id": "/subscriptions/4b76450a-90d1-4045-9e89-c4c314b3c602/providers/Microsoft.Authorization/policyDefinitions/66a9947d-7997-40ef-a9d7-9c778a0bb3b3",
+ "type": "Microsoft.Authorization/policyDefinitions",
+ "name": "66a9947d-7997-40ef-a9d7-9c778a0bb3b3"
+}
